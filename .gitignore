@@ -1,0 +1,15 @@
+# Rust/Cargo
+/target
+**/*.rs.bk
+**/*.rs~
+Cargo.lock
+
+# Editor temp files
+*.swp
+*.swo
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db

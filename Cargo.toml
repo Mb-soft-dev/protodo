@@ -1,0 +1,11 @@
+[package]
+name = "protodo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+rusqlite = { version = "0.37.0", features = ["chrono"] }
+chrono = "0.4"
+colored = "3.0.0"
+comfy-table = "7"
