@@ -1,5 +1,7 @@
 use clap::Parser;
 mod cli;
+mod db;
+mod task;
 
 #[derive(Parser)]
 struct Cli {
@@ -11,22 +13,22 @@ struct Cli {
 enum Commands {
     List,
     Add { description: String },
-    Complete { id: u32 },
+    // Complete { id: u32 },
 }
 
 fn main() {
     let cli = Cli::parse();
-    let tasks = cli::list();
+    let mut task_store = db::TaskStore::new();
 
     match cli.command {
-        Commands::List => tasks,
+        Commands::List => {
+            cli::protodo_commands::list(&task_store);
+        }
         Commands::Add { description } => {
-            println!("Adding task: {}", description);
-            // Here you would add the task to your storage
-        }
-        Commands::Complete { id } => {
-            println!("Completing task with ID: {}", id);
-            // Here you would mark the task as complete in your storage
-        }
+            cli::protodo_commands::add(&mut task_store, description);
+        } // Commands::Complete { id } => {
+          //     println!("Completing task with ID: {}", id);
+          //     // Here you would mark the task as complete in your storage
+          // }
     }
 }

@@ -1,27 +1,43 @@
-use colored::*;
-use comfy_table::{Cell, Table};
-pub struct Task {
-    pub description: String,
-}
-pub fn list() -> () {
-    let mut table = Table::new();
-    table.set_header(vec!["ID", "Description", "Status"]);
-    table.add_row(vec![
-        Cell::new("1"),
-        Cell::new("Learn Python"),
-        Cell::new("In Progress").fg(comfy_table::Color::Yellow),
-    ]);
+pub mod protodo_commands {
+    use crate::db::TaskStore;
+    use comfy_table::{Cell, Color, Table, presets};
 
-    table.add_row(vec![
-        Cell::new("2"),
-        Cell::new("Learn Rust"),
-        Cell::new("Not Started").fg(comfy_table::Color::Red),
-    ]);
+    pub fn add(store: &mut TaskStore, description: String) {
+        let id = store.list().len() as u32 + 1;
+        TaskStore::add(store, description);
+        println!("Added task: {id}");
+    }
 
-    println!("{table}");
+    pub fn list(store: &TaskStore) {
+        let mut table = Table::new();
+        table.set_header(vec!["ID", "Description", "Status"]);
 
-    // vec![
-    //     Task{description: "learn python".to_string()},
-    //     Task{description: "learn rust".to_string()},
-    // ]
+        if store.list().is_empty() {
+            println!("No tasks found.");
+            return;
+        }
+
+        let rows: Vec<Vec<Cell>> = store
+            .list()
+            .iter()
+            .map(|task| {
+                let status = if task.completed {
+                    "finished"
+                } else {
+                    "pending"
+                };
+                vec![
+                    Cell::new(task.id.to_string()).fg(Color::Green),
+                    Cell::new(task.description.clone()).fg(Color::Yellow),
+                    Cell::new(status).fg(Color::Blue),
+                ]
+            })
+            .collect();
+
+        table.add_rows(rows);
+
+        table.load_preset(presets::UTF8_FULL);
+
+        println!("{table}");
+    }
 }
