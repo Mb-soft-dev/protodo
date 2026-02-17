@@ -13,3 +13,4 @@ Cargo.lock
 # OS files
 .DS_Store
 Thumbs.db
+protodo.db

@@ -1,43 +1,50 @@
-pub mod protodo_commands {
-    use crate::db::TaskStore;
-    use comfy_table::{Cell, Color, Table, presets};
+use crate::db::TaskStore;
+use colored::Colorize;
+use comfy_table::Table;
 
-    pub fn add(store: &mut TaskStore, description: String) {
-        let id = store.list().len() as u32 + 1;
-        TaskStore::add(store, description);
-        println!("Added task: {id}");
+pub mod protodo_commands {
+    use super::*;
+
+    pub fn add(task_store: &TaskStore, description: String) {
+        match task_store.add(description.clone()) {
+            Ok(task) => println!("{}", format!("Task added: {}", task.description).green()),
+            Err(e) => eprintln!("Error adding task: {e}"),
+        }
     }
 
-    pub fn list(store: &TaskStore) {
-        let mut table = Table::new();
-        table.set_header(vec!["ID", "Description", "Status"]);
-
-        if store.list().is_empty() {
-            println!("No tasks found.");
-            return;
+    pub fn list(task_store: &TaskStore) {
+        match task_store.list_tasks() {
+            Ok(tasks) => {
+                let mut table = Table::new();
+                table.set_header(["ID", "Description", "Completed", "Created At"]);
+                for task in tasks {
+                    let max_len = 50;
+                    let id_str = task.description.to_string();
+                    let truncated = &id_str[..id_str.len().min(max_len)];
+                    table.add_row([
+                        task.id.to_string(),
+                        truncated.to_string(),
+                        task.completed.to_string(),
+                        task.created_at.to_string(),
+                    ]);
+                }
+                println!("{table}");
+            }
+            Err(e) => eprintln!("Error listing tasks: {e}"),
         }
+    }
 
-        let rows: Vec<Vec<Cell>> = store
-            .list()
-            .iter()
-            .map(|task| {
-                let status = if task.completed {
-                    "finished"
-                } else {
-                    "pending"
-                };
-                vec![
-                    Cell::new(task.id.to_string()).fg(Color::Green),
-                    Cell::new(task.description.clone()).fg(Color::Yellow),
-                    Cell::new(status).fg(Color::Blue),
-                ]
-            })
-            .collect();
+    pub fn delete(task_store: &TaskStore, id: i64) {
+        match task_store.delete_task(id) {
+            Ok(id) => println!("{}", format!("Task deleted: {id}").green()),
+            Err(e) => eprintln!("Error delete task: {e}"),
+        }
+    }
 
-        table.add_rows(rows);
-
-        table.load_preset(presets::UTF8_FULL);
-
-        println!("{table}");
+    pub fn completed(task_store: &TaskStore, id: i64) {
+        match task_store.complete_task(id) {
+            Ok(id) => println!("{}", format!("Task completed: {id}").green()),
+            Err(e) => eprintln!("Error complete task: {e}"),
+        }
     }
 }

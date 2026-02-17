@@ -13,22 +13,27 @@ struct Cli {
 enum Commands {
     List,
     Add { description: String },
-    // Complete { id: u32 },
+    Delete { id: i64 },
+    Completed { id: i64 },
 }
 
 fn main() {
     let cli = Cli::parse();
-    let mut task_store = db::TaskStore::new();
+    let task_store = db::TaskStore::new();
 
     match cli.command {
         Commands::List => {
             cli::protodo_commands::list(&task_store);
         }
         Commands::Add { description } => {
-            cli::protodo_commands::add(&mut task_store, description);
-        } // Commands::Complete { id } => {
-          //     println!("Completing task with ID: {}", id);
-          //     // Here you would mark the task as complete in your storage
-          // }
+            cli::protodo_commands::add(&task_store, description);
+        }
+        Commands::Delete { id } => {
+            cli::protodo_commands::delete(&task_store, id);
+        }
+
+        Commands::Completed { id } => {
+            cli::protodo_commands::completed(&task_store, id);
+        }
     }
 }
