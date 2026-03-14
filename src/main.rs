@@ -12,14 +12,27 @@ struct Cli {
 #[derive(clap::Subcommand)]
 enum Commands {
     List,
-    Add { description: String },
-    Delete { id: i64 },
-    Completed { id: i64 },
+    Add {
+        description: String,
+    },
+    Delete {
+        id: i64,
+    },
+    UpdateStatus {
+        id: i64,
+        status: crate::task::TaskStatus,
+    },
 }
 
 fn main() {
     let cli = Cli::parse();
-    let task_store = db::TaskStore::new();
+    let task_store = match db::TaskStore::new() {
+        Ok(store) => store,
+        Err(e) => {
+            eprintln!("Error initializing database: {e}");
+            std::process::exit(1);
+        }
+    };
 
     match cli.command {
         Commands::List => {
@@ -31,9 +44,8 @@ fn main() {
         Commands::Delete { id } => {
             cli::protodo_commands::delete(&task_store, id);
         }
-
-        Commands::Completed { id } => {
-            cli::protodo_commands::completed(&task_store, id);
+        Commands::UpdateStatus { id, status } => {
+            cli::protodo_commands::update_status(&task_store, id, status);
         }
     }
 }

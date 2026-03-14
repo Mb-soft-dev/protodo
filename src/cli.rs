@@ -6,7 +6,7 @@ pub mod protodo_commands {
     use super::*;
 
     pub fn add(task_store: &TaskStore, description: String) {
-        match task_store.add(description.clone()) {
+        match task_store.add(description.clone().trim().to_string()) {
             Ok(task) => println!("{}", format!("Task added: {}", task.description).green()),
             Err(e) => eprintln!("Error adding task: {e}"),
         }
@@ -16,16 +16,25 @@ pub mod protodo_commands {
         match task_store.list_tasks() {
             Ok(tasks) => {
                 let mut table = Table::new();
-                table.set_header(["ID", "Description", "Completed", "Created At"]);
+                table.load_preset(comfy_table::presets::ASCII_HORIZONTAL_ONLY);
+
+                table.set_header(["ID", "Description", "created_at", "Status"]);
+                let max_len = 50;
                 for task in tasks {
-                    let max_len = 50;
-                    let id_str = task.description.to_string();
-                    let truncated = &id_str[..id_str.len().min(max_len)];
+                    let truncated = if task.description.len() > max_len {
+                        format!("{}...", &task.description[..max_len]).to_string()
+                    } else {
+                        task.description.clone().to_string()
+                    };
                     table.add_row([
                         task.id.to_string(),
-                        truncated.to_string(),
-                        task.completed.to_string(),
-                        task.created_at.to_string(),
+                        truncated,
+                        task.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+                        match task.status {
+                            crate::task::TaskStatus::Pending => "Pending".to_string(),
+                            crate::task::TaskStatus::InProgress => "InProgress".red().to_string(),
+                            crate::task::TaskStatus::Done => "Done".green().to_string(),
+                        },
                     ]);
                 }
                 println!("{table}");
@@ -41,8 +50,8 @@ pub mod protodo_commands {
         }
     }
 
-    pub fn completed(task_store: &TaskStore, id: i64) {
-        match task_store.complete_task(id) {
+    pub fn update_status(task_store: &TaskStore, id: i64, status: crate::task::TaskStatus) {
+        match task_store.update_status(id, status) {
             Ok(id) => println!("{}", format!("Task completed: {id}").green()),
             Err(e) => eprintln!("Error complete task: {e}"),
         }
