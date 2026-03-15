@@ -10,6 +10,67 @@ pub struct TaskStore {
 }
 
 impl TaskStore {
+    pub fn add(&self, description: String) -> rusqlite::Result<Task> {
+        let now = Utc::now().naive_utc();
+
+        self.conn.execute(
+            "INSERT INTO tasks (description, created_at, status) VALUES (?1, ?2, ?3)",
+            [&description as &dyn rusqlite::ToSql, &now, &(0 as i64)],
+        )?;
+
+        let id = self.conn.last_insert_rowid();
+        Ok(Task {
+            id,
+            description,
+            status: crate::task::TaskStatus::Pending,
+            created_at: Utc::now(),
+        })
+    }
+
+    pub fn delete_task(&self, id: i64) -> rusqlite::Result<i64> {
+        self.conn
+            .execute("DELETE FROM tasks WHERE id = (?1)", [id])?;
+        Ok(id)
+    }
+
+    pub fn update_status(&self, id: i64, status: crate::task::TaskStatus) -> rusqlite::Result<i64> {
+        let status_value = match status {
+            crate::task::TaskStatus::Pending => 0,
+            crate::task::TaskStatus::InProgress => 1,
+            crate::task::TaskStatus::Done => 2,
+        };
+        self.conn.execute(
+            "UPDATE tasks SET status = (?1) WHERE id = (?2)",
+            [&status_value as &dyn rusqlite::ToSql, &id],
+        )?;
+
+        Ok(id)
+    }
+
+    pub fn clear_all_tasks(&self) -> rusqlite::Result<()> {
+        self.conn.execute("DELETE FROM tasks", [])?;
+        Ok(())
+    }
+
+    pub fn get_by_id(&self, id: i64) -> rusqlite::Result<Task> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, description, status, created_at FROM tasks WHERE id = ?1")?;
+        let task = stmt.query_row([id], |row| {
+            Ok(Task {
+                id: row.get(0)?,
+                description: row.get(1)?,
+                status: match row.get::<_, i32>(2)? {
+                    0 => crate::task::TaskStatus::Pending,
+                    1 => crate::task::TaskStatus::InProgress,
+                    2 => crate::task::TaskStatus::Done,
+                    _ => crate::task::TaskStatus::Pending,
+                },
+                created_at: row.get(3)?,
+            })
+        })?;
+        Ok(task)
+    }
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let db_path = Self::get_db_path()?;
         let conn = Connection::open(&db_path)?;
@@ -32,51 +93,6 @@ impl TaskStore {
         std::fs::create_dir_all(&path)?;
         path.push("protodo.db");
         Ok(path)
-    }
-
-    pub fn get_by_id(&self, id: i64) -> rusqlite::Result<Task> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT id, description, status, created_at FROM tasks WHERE id = ?1")?;
-        let task = stmt
-            .query_row([id], |row| {
-                Ok(Task {
-                    id: row.get(0)?,
-                    description: row.get(1)?,
-                    status: match row.get::<_, i32>(2)? {
-                        0 => crate::task::TaskStatus::Pending,
-                        1 => crate::task::TaskStatus::InProgress,
-                        2 => crate::task::TaskStatus::Done,
-                        _ => crate::task::TaskStatus::Pending,
-                    },
-                    created_at: row.get(3)?,
-                })
-            })
-            .map_err(|_| rusqlite::Error::QueryReturnedNoRows)?;
-        Ok(task)
-    }
-
-    /// Clears all tasks from the database (useful for tests).
-    pub fn clear_all_tasks(&self) -> rusqlite::Result<()> {
-        self.conn.execute("DELETE FROM tasks", [])?;
-        Ok(())
-    }
-
-    pub fn add(&self, description: String) -> rusqlite::Result<Task> {
-        let now = Utc::now().naive_utc();
-
-        self.conn.execute(
-            "INSERT INTO tasks (description, created_at, status) VALUES (?1, ?2, ?3)",
-            [&description as &dyn rusqlite::ToSql, &now, &(0 as i64)],
-        )?;
-
-        let id = self.conn.last_insert_rowid();
-        Ok(Task {
-            id,
-            description,
-            status: crate::task::TaskStatus::Pending,
-            created_at: Utc::now(),
-        })
     }
 
     pub fn list_tasks(&self) -> rusqlite::Result<Vec<Task>> {
@@ -104,23 +120,32 @@ impl TaskStore {
         Ok(tasks)
     }
 
-    pub fn delete_task(&self, id: i64) -> rusqlite::Result<i64> {
-        self.conn
-            .execute("DELETE FROM tasks WHERE id = (?1)", [id])?;
-        Ok(id)
-    }
+    pub fn list_tasks_with_pagination(
+        &self,
+        offset: usize,
+        limit: usize,
+    ) -> rusqlite::Result<Vec<Task>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, description, status, created_at FROM tasks ORDER BY id ASC LIMIT ?2 OFFSET ?1")?;
+        let tasks_iter = stmt.query_map(rusqlite::params![offset as i64, limit as i64], |row| {
+            Ok(Task {
+                id: row.get(0)?,
+                description: row.get(1)?,
+                status: match row.get::<_, i32>(2)? {
+                    0 => crate::task::TaskStatus::Pending,
+                    1 => crate::task::TaskStatus::InProgress,
+                    2 => crate::task::TaskStatus::Done,
+                    _ => crate::task::TaskStatus::Pending,
+                },
+                created_at: row.get(3)?,
+            })
+        })?;
 
-    pub fn update_status(&self, id: i64, status: crate::task::TaskStatus) -> rusqlite::Result<i64> {
-        let status_value = match status {
-            crate::task::TaskStatus::Pending => 0,
-            crate::task::TaskStatus::InProgress => 1,
-            crate::task::TaskStatus::Done => 2,
-        };
-        self.conn.execute(
-            "UPDATE tasks SET status = (?1) WHERE id = (?2)",
-            [&status_value as &dyn rusqlite::ToSql, &id],
-        )?;
-
-        Ok(id)
+        let mut tasks = Vec::new();
+        for task in tasks_iter {
+            tasks.push(task?);
+        }
+        Ok(tasks)
     }
 }

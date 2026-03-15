@@ -3,6 +3,8 @@ mod cli;
 mod db;
 mod task;
 
+use clap::builder::TypedValueParser;
+
 #[derive(Parser)]
 struct Cli {
     #[command(subcommand)]
@@ -11,7 +13,12 @@ struct Cli {
 
 #[derive(clap::Subcommand)]
 enum Commands {
-    List,
+    List {
+        #[arg(short, long, default_value_t = 1)]
+        page: usize,
+        #[arg(long, default_value_t = 10, value_parser = clap::builder::PossibleValuesParser::new(["5", "10", "20", "30", "40", "50"]).map(|s| s.parse::<usize>().unwrap()))]
+        page_size: usize,
+    },
     ClearAllTasks,
     GetById {
         id: i64,
@@ -39,8 +46,8 @@ fn main() {
     };
 
     match cli.command {
-        Commands::List => {
-            cli::protodo_commands::list(&task_store);
+        Commands::List { page, page_size } => {
+            cli::protodo_commands::list(&task_store, Some(page), Some(page_size));
         }
         Commands::Add { description } => {
             cli::protodo_commands::add(&task_store, description);

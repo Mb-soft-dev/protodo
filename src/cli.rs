@@ -12,18 +12,27 @@ pub mod protodo_commands {
         }
     }
 
-    pub fn list(task_store: &TaskStore) {
-        match task_store.list_tasks() {
+    pub fn list(task_store: &TaskStore, page: Option<usize>, page_size: Option<usize>) {
+        // Default values for pagination
+        let page = page.unwrap_or(1);
+        let page_size = page_size.unwrap_or(10).clamp(10, 50);
+        let offset = (page - 1) * page_size;
+
+        // Paginated behavior: Fetch and display a subset of tasks
+        let _offset = (page - 1) * page_size;
+
+        match task_store.list_tasks_with_pagination(offset, page_size) {
             Ok(tasks) => {
                 if tasks.is_empty() {
-                    println!("{}", "Protodo: no tasks found".yellow());
+                    println!("{}", "No tasks found for this page".yellow());
                     return;
                 }
 
                 let table = format_task_table(tasks);
                 println!("{table}");
+                println!("Page {} | Showing {} tasks per page", page, page_size);
             }
-            Err(e) => eprintln!("Error listing tasks: {e}"),
+            Err(_e) => eprintln!("Error listing tasks: {{_e}}"),
         }
     }
 
@@ -79,6 +88,7 @@ pub mod protodo_commands {
             Err(e) => eprintln!("Error clearing tasks: {e}"),
         }
     }
+
     pub fn get_by_id(task_store: &TaskStore, id: i64) {
         match task_store.get_by_id(id) {
             Ok(task) => {

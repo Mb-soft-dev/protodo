@@ -1,3 +1,6 @@
+use protodo::db::TaskStore;
+use protodo::task::TaskStatus;
+
 // Integration tests for the `db` module
 
 #[test]
@@ -16,9 +19,6 @@ fn test_get_by_id() {
     assert!(non_existent_task.is_err()); // Expect an error for non-existent ID
 }
 
-use protodo::db::TaskStore;
-use protodo::task::TaskStatus;
-
 #[test]
 fn test_add_task() {
     let task_store = TaskStore::new().expect("Failed to initialize TaskStore");
@@ -36,7 +36,6 @@ fn test_add_task() {
 fn test_list_tasks() {
     let task_store = TaskStore::new().expect("Failed to initialize TaskStore");
     task_store.clear_all_tasks().unwrap(); // Clear stale tasks
-    task_store.clear_all_tasks().unwrap();
     task_store.add("Task A".to_string()).unwrap();
     task_store.add("Task B".to_string()).unwrap();
 
@@ -71,4 +70,47 @@ fn test_update_status() {
         .find(|t| t.id == task.id)
         .unwrap();
     assert_eq!(updated_task.status, TaskStatus::Done);
+}
+
+#[test]
+fn test_pagination() {
+    let task_store = TaskStore::new().expect("Failed to initialize TaskStore");
+    task_store.clear_all_tasks().unwrap(); // Clear stale tasks
+
+    // Add 50 tasks
+    for i in 1..=50 {
+        task_store
+            .add(format!("Task {:02}", i))
+            .expect("Failed to add task");
+    }
+
+    // Test page 1 with page_size 10 (should return tasks 1-10)
+    let tasks = task_store
+        .list_tasks_with_pagination(0, 10)
+        .expect("Failed to list tasks with pagination");
+    assert_eq!(tasks.len(), 10);
+    assert_eq!(tasks[0].description, "Task 01");
+    assert_eq!(tasks[9].description, "Task 10");
+
+    // Test page 2 with page_size 10 (should return tasks 11-20)
+    let tasks = task_store
+        .list_tasks_with_pagination(10, 10)
+        .expect("Failed to list tasks with pagination");
+    assert_eq!(tasks.len(), 10);
+    assert_eq!(tasks[0].description, "Task 11");
+    assert_eq!(tasks[9].description, "Task 20");
+
+    // Test page 3 with page_size 10 (should return tasks 21-25)
+    let tasks = task_store
+        .list_tasks_with_pagination(40, 10)
+        .expect("Failed to list tasks with pagination");
+    assert_eq!(tasks.len(), 10);
+    assert_eq!(tasks[0].description, "Task 41");
+    assert_eq!(tasks[4].description, "Task 45");
+
+    // Test an empty page (e.g., page 4 with page_size 10, no tasks remain)
+    let tasks = task_store
+        .list_tasks_with_pagination(50, 10)
+        .expect("Failed to list tasks with pagination");
+    assert_eq!(tasks.len(), 0);
 }
