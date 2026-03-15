@@ -34,12 +34,40 @@ impl TaskStore {
         Ok(path)
     }
 
+    pub fn get_by_id(&self, id: i64) -> rusqlite::Result<Task> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, description, status, created_at FROM tasks WHERE id = ?1")?;
+        let task = stmt
+            .query_row([id], |row| {
+                Ok(Task {
+                    id: row.get(0)?,
+                    description: row.get(1)?,
+                    status: match row.get::<_, i32>(2)? {
+                        0 => crate::task::TaskStatus::Pending,
+                        1 => crate::task::TaskStatus::InProgress,
+                        2 => crate::task::TaskStatus::Done,
+                        _ => crate::task::TaskStatus::Pending,
+                    },
+                    created_at: row.get(3)?,
+                })
+            })
+            .map_err(|_| rusqlite::Error::QueryReturnedNoRows)?;
+        Ok(task)
+    }
+
+    /// Clears all tasks from the database (useful for tests).
+    pub fn clear_all_tasks(&self) -> rusqlite::Result<()> {
+        self.conn.execute("DELETE FROM tasks", [])?;
+        Ok(())
+    }
+
     pub fn add(&self, description: String) -> rusqlite::Result<Task> {
         let now = Utc::now().naive_utc();
 
         self.conn.execute(
             "INSERT INTO tasks (description, created_at, status) VALUES (?1, ?2, ?3)",
-            [&description as &dyn rusqlite::ToSql, &now, &(0 as i32)],
+            [&description as &dyn rusqlite::ToSql, &now, &(0 as i64)],
         )?;
 
         let id = self.conn.last_insert_rowid();
@@ -54,7 +82,7 @@ impl TaskStore {
     pub fn list_tasks(&self) -> rusqlite::Result<Vec<Task>> {
         let mut stmt = self
             .conn
-            .prepare("SELECT id, description, status, created_at FROM tasks ORDER BY id")?;
+            .prepare("SELECT id, description, status, created_at FROM tasks ORDER BY id ASC")?;
         let tasks_iter = stmt.query_map([], |row| {
             Ok(Task {
                 id: row.get(0)?,
@@ -79,7 +107,6 @@ impl TaskStore {
     pub fn delete_task(&self, id: i64) -> rusqlite::Result<i64> {
         self.conn
             .execute("DELETE FROM tasks WHERE id = (?1)", [id])?;
-
         Ok(id)
     }
 
@@ -91,7 +118,7 @@ impl TaskStore {
         };
         self.conn.execute(
             "UPDATE tasks SET status = (?1) WHERE id = (?2)",
-            [&status_value, &id],
+            [&status_value as &dyn rusqlite::ToSql, &id],
         )?;
 
         Ok(id)

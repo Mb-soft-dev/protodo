@@ -12,6 +12,10 @@ struct Cli {
 #[derive(clap::Subcommand)]
 enum Commands {
     List,
+    ClearAllTasks,
+    GetById {
+        id: i64,
+    },
     Add {
         description: String,
     },
@@ -46,6 +50,12 @@ fn main() {
         }
         Commands::UpdateStatus { id, status } => {
             cli::protodo_commands::update_status(&task_store, id, status);
+        }
+        Commands::ClearAllTasks => {
+            cli::protodo_commands::clear_all_tasks(&task_store);
+        }
+        Commands::GetById { id } => {
+            cli::protodo_commands::get_by_id(&task_store, id);
         }
     }
 }
