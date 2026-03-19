@@ -33,19 +33,6 @@ fn test_add_task() {
 }
 
 #[test]
-fn test_list_tasks() {
-    let task_store = TaskStore::new().expect("Failed to initialize TaskStore");
-    task_store.clear_all_tasks().unwrap(); // Clear stale tasks
-    task_store.add("Task A".to_string()).unwrap();
-    task_store.add("Task B".to_string()).unwrap();
-
-    let tasks = task_store.list_tasks().expect("Failed to list tasks");
-    assert!(tasks.len() >= 2);
-    assert_eq!(tasks[0].description, "Task A");
-    assert_eq!(tasks[1].description, "Task B");
-}
-
-#[test]
 fn test_delete_task() {
     let task_store = TaskStore::new().expect("Failed to initialize TaskStore");
     let task = task_store.add("Task to delete".to_string()).unwrap();
@@ -64,7 +51,7 @@ fn test_update_status() {
     assert!(result.is_ok());
 
     let updated_task = task_store
-        .list_tasks()
+        .list_tasks_with_pagination(0, 100)
         .unwrap()
         .into_iter()
         .find(|t| t.id == task.id)
@@ -80,7 +67,7 @@ fn test_pagination() {
     // Add 50 tasks
     for i in 1..=50 {
         task_store
-            .add(format!("Task {:02}", i))
+            .add(format!("Task {i:02}"))
             .expect("Failed to add task");
     }
 

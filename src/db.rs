@@ -15,7 +15,7 @@ impl TaskStore {
 
         self.conn.execute(
             "INSERT INTO tasks (description, created_at, status) VALUES (?1, ?2, ?3)",
-            [&description as &dyn rusqlite::ToSql, &now, &(0 as i64)],
+            [&description as &dyn rusqlite::ToSql, &now, &(0_i32)],
         )?;
 
         let id = self.conn.last_insert_rowid();
@@ -93,31 +93,6 @@ impl TaskStore {
         std::fs::create_dir_all(&path)?;
         path.push("protodo.db");
         Ok(path)
-    }
-
-    pub fn list_tasks(&self) -> rusqlite::Result<Vec<Task>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT id, description, status, created_at FROM tasks ORDER BY id ASC")?;
-        let tasks_iter = stmt.query_map([], |row| {
-            Ok(Task {
-                id: row.get(0)?,
-                description: row.get(1)?,
-                status: match row.get::<_, i32>(2)? {
-                    0 => crate::task::TaskStatus::Pending,
-                    1 => crate::task::TaskStatus::InProgress,
-                    2 => crate::task::TaskStatus::Done,
-                    _ => crate::task::TaskStatus::Pending,
-                },
-                created_at: row.get(3)?,
-            })
-        })?;
-
-        let mut tasks = Vec::new();
-        for task in tasks_iter {
-            tasks.push(task?);
-        }
-        Ok(tasks)
     }
 
     pub fn list_tasks_with_pagination(

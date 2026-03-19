@@ -30,7 +30,7 @@ pub mod protodo_commands {
 
                 let table = format_task_table(tasks);
                 println!("{table}");
-                println!("Page {} | Showing {} tasks per page", page, page_size);
+                println!("Page {page} | Showing {page_size} tasks per page",);
             }
             Err(_e) => eprintln!("Error listing tasks: {{_e}}"),
         }

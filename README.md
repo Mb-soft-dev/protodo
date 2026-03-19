@@ -1,108 +1,106 @@
-# Protodo CLI Application
+# AGENT.md — protodo
 
-The `protodo` CLI tool is a lightweight and functional task management application built with Rust. It provides the ability to manage your tasks directly from the command line.
-
-## Features
-
-- **Task Management**:
-  - Add, list, delete, and update task status.
-  - Supported statuses: `Pending`, `InProgress`, `Done`.
-- **Pagination**:
-  - Enforced pagination in the `list` command.
-  - Customizable parameters: `--page` (default: 1) and `--page-size` (default: 10).
-  - Valid `--page-size` values: `5`, `10`, `20`, `30`, `40`, `50`.
-  - Displays descriptive warnings for empty pages.
-- **Database Integration**:
-  - SQLite backend for persistent task management.
-- **Simple, Modular Design**:
-  - Organized with clearly separated modules for CLI, database management, and task representation.
+## What is protodo
+Lightweight CLI task manager built in Rust with SQLite persistence.
+Single binary, no runtime dependencies, embedded database.
 
 ---
 
-## Installation
+## Identity & Expertise
 
-### Requirements
-- Rust (1.65.0 or higher)
-- SQLite (embedded)
+Senior Rust developer specializing in CLI applications.
+Priorities: performance, correctness, ergonomics — in that order.
 
-### Steps
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/protodo.git
-   cd protodo
-   ```
-2. Build the application:
-   ```bash
-   cargo build --release
-   ```
-3. Run directly:
-   ```bash
-   cargo run -- <command>
-   ```
+### Core competencies
+- CLI parsing: `clap`
+- Database: `rusqlite` (SQLite embedded)
+- Error handling: `thiserror` / `anyhow`
+- Testing: 100% coverage enforced, integration tests against real DB
+- Modular design, zero unnecessary allocations
 
 ---
 
-## Usage
+## Architecture
 
-### Basic Commands
+src/
+├── main.rs       # Entrypoint — parses CLI and dispatches to handlers
+├── cli.rs        # clap command definitions and argument structs
+├── db.rs         # All SQLite interactions (CRUD, pagination queries)
+├── task.rs       # Task struct, Status enum, domain logic
+└── lib.rs        # Re-exports for integration tests
 
-#### Add a Task
-```bash
-cargo run -- add "Task description here"
-```
-#### List Tasks (with Pagination)
-```bash
-cargo run -- list --page=1 --page-size=10
-```
-#### Update Status
-```bash
-cargo run -- update-status <task-id> Done
-```
-#### Delete a Task
-```bash
-cargo run -- delete <task-id>
-```
-#### Clear All Tasks
-```bash
-cargo run -- clear-all-tasks
-```
-#### Get a Task by ID
-```bash
-cargo run -- get-by-id <task-id>
-```
+tests/
+└── db_tests.rs   # Integration tests against real SQLite (in-memory or file)
+
+### Module responsibilities
+- `cli.rs` → shape of commands only, no business logic
+- `db.rs` → SQL only, no formatting or display logic
+- `task.rs` → domain types (`Task`, `Status`), no I/O
+- `main.rs` → wires cli + db + task, handles output and errors
+
+### Strict rules
+- Never put SQL in `main.rs` or `cli.rs`
+- Never put display/print logic in `db.rs`
+- All DB errors bubble up via `Result`, never panicked
 
 ---
 
-## Example: Listing Tasks with Pagination
+## Domain
 
-Here’s how to view tasks with pagination:
-```bash
-cargo run -- list --page=2 --page-size=5
-```
-- This displays tasks on page 2 with 5 tasks per page.
+### Task
+```rust
+struct Task {
+  id: u32,
+  description: String,
+  status: Status,
+}
 
-Empty pages will display:
-```bash
-No tasks found for this page.
+enum Status { Pending, InProgress, Done }
 ```
+
+### Commands
+| Command          | Args                          | Notes                              |
+|------------------|-------------------------------|------------------------------------|
+| `add`            | `"description"`               |                                    |
+| `list`           | `--page` `--page-size`        | default: page=1, size=10           |
+| `update-status`  | `<id>` `<status>`             | status: Pending, InProgress, Done  |
+| `delete`         | `<id>`                        |                                    |
+| `get-by-id`      | `<id>`                        |                                    |
+| `clear-all-tasks`|                               |                                    |
+
+### Pagination rules
+- Valid `--page-size` values: `5 10 20 30 40 50`
+- Invalid size → hard error, not a warning
+- Empty page → display: `"No tasks found for this page."`
 
 ---
 
-## Tests
+## Testing
 
-To run the tests:
+- Test file: `tests/db_tests.rs`
+- Tests run against real SQLite (in-memory recommended for isolation)
+- 100% coverage enforced — every command has at least one test
+- Each test sets up its own DB state, no shared mutable state between tests
 ```bash
 cargo test
 ```
-The test suite validates CRUD operations, pagination behavior, and database interactions.
 
 ---
 
-## Future Enhancements
-- Filter tasks by status.
-- Add sorting capabilities (e.g., by creation time).
-- Improve error handling for additional edge cases.
+## Build & Run
+```bash
+cargo build --release
+cargo run -- add "my task"
+cargo run -- list --page=1 --page-size=10
+cargo run -- update-status 1 Done
+cargo run -- delete 1
+cargo run -- get-by-id 1
+cargo run -- clear-all-tasks
+```
 
 ---
 
-The `protodo` CLI tool simplifies task management and is a great starting point for Rust learners exploring command-line applications.
+## Future
+- Filter by status
+- Sort by creation date
+- Extended error handling
